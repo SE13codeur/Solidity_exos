@@ -15,4 +15,12 @@ contract People {
 
   Person[] public tabPerson;
 
+  function addPerson(string memory _name, uint _age) public {
+    tabPerson.push(Person(_name, _age));
+  }
+
+  function removePerson(uint _index) public {
+    tabPerson[_index] = tabPerson[tabPerson.length - 1];
+    tabPerson.pop();
+  }
 }
