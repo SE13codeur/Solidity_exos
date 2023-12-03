@@ -7,4 +7,12 @@ contract People {
     uint age;
   }
   Person moi;
+
+  function modifyPerson(string memory _name, uint _age) public {
+    moi.name = _name;
+    moi.age = _age;
+  }
+
+  Person[] public tabPerson;
+
 }
