@@ -3,75 +3,82 @@ pragma solidity ^0.8.2;
 
 import "./Token.sol";
 
-contract GuessingGame is Ownable {
-    struct Game {
-        string word;
-        string clue;
-        address admin;
-        address winner;
-        mapping(address => bool) playedMap;
-        bool finished;
+error UserHasAlreadyPlayed(address user);
+error GameFinished();
+error OwnerCannotGuess();
+error EmptyWordString();
+
+contract GuessAndWin is Ownable {
+
+    string private word;
+    string private indication;
+    address winner;
+    mapping(address => bool) hasPlayed;
+
+    // Reset
+    address[] private players;
+    
+    event GameWon(address indexed _winner);
+    event GameReset();
+
+    constructor() Ownable(msg.sender) {
+
     }
 
-    mapping(address => Game) public games;
-
-    function createGame(string memory _word, string memory _clue, address _admin) external onlyOwner {
-        Game storage game = games[msg.sender];
-        _initializeGame(game, _word, _clue, _admin);
-    }
-
-    function _initializeGame(
-        Game storage game,
-        string memory _word,
-        string memory _clue,
-        address _admin
-    ) internal {
-        game.word = _word;
-        game.clue = _clue;
-        game.admin = _admin;
-    }
-
-    function _setGameProperty(string memory _property, string memory _value) internal {
-        Game storage game = games[msg.sender];
-
-        if (keccak256(abi.encodePacked(_property)) == keccak256(abi.encodePacked("word"))) {
-            game.word = _value;
-        } else if (keccak256(abi.encodePacked(_property)) == keccak256(abi.encodePacked("clue"))) {
-            game.clue = _value;
-        } else if (keccak256(abi.encodePacked(_property)) == keccak256(abi.encodePacked("admin"))) {
-            game.admin = address(bytes20(bytes(_value)));
+    function guess(string memory _word) external returns(bool) {
+        // require(msg.sender != owner(), "The owner cannot play");
+        if(isEqual(word, "")) {
+            revert EmptyWordString();
         }
+        if(hasPlayed[msg.sender]) {
+            revert UserHasAlreadyPlayed(msg.sender);
+        }
+        if(winner != address(0)) {
+            revert GameFinished();
+        }
+        if(msg.sender == owner()) {
+            revert OwnerCannotGuess();
+        }
+        if(isEqual(word, _word)) {
+            winner = msg.sender;
+            hasPlayed[msg.sender] = true;
+            players.push(msg.sender);
+            emit GameWon(msg.sender);
+            return true;
+        }
+        hasPlayed[msg.sender] = true;
+        players.push(msg.sender);
+        return false;
     }
 
-    function setWord(string memory _word) public onlyOwner {
-        _setGameProperty("word", _word);
+    function setWordAndIndication(string memory _word, string memory _indication) 
+    external onlyOwner {
+        word = _word;
+        indication = _indication;
     }
 
-    function setClue(string memory _clue) public onlyOwner {
-        _setGameProperty("clue", _clue);
+    function reset() external onlyOwner {
+        word = "";
+        indication = "";
+        winner = address(0);
+        for(uint256 i = 0 ; i < players.length ; i++) {
+            hasPlayed[players[i]] = false;
+        }
+        delete players;
+
+        emit GameReset();
     }
 
-    function setAdmin(string memory _admin) public onlyOwner {
-        _setGameProperty("admin", _admin);
+    function isEqual(string memory _string1, string memory _string2) 
+    private pure returns(bool) {
+        return keccak256(abi.encodePacked(_string1)) == keccak256(abi.encodePacked(_string2));
     }
 
-    function getWord() public view returns (string memory) {
-        games[msg.sender].word;
+    function getIndication() external view returns(string memory) {
+        return indication;
     }
 
-    function reset() public onlyOwner {
-        games[msg.sender].word = "";
-    }
-
-    function getClue() public view returns (string memory) {
-        games[msg.sender].clue;
-    }
-
-    function getAdmin() public view returns (string memory) {
-        games[msg.sender].admin;
-    }
-
-    function getWinner() public view returns (address) {
-        games[msg.sender].winner;
+    function getWinner() external view returns(address) {
+        return winner;
     }
 }
